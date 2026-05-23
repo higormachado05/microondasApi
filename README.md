@@ -2,6 +2,7 @@
 Projeto desenvolvido em .NET utilizando WinForms, com foco na simulação de um micro-ondas digital contendo aquecimento manual, programas pré-definidos e cadastro de programas personalizados.
 
 O projeto foi estruturado utilizando separação em camadas e aplicação do padrão CQRS para organização das regras de negócio.
+O projeto atende ao nível 3 dos requisitos.
 
 Funcionalidades implementadas
 Aquecimento manual
