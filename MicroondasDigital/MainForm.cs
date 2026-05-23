@@ -44,25 +44,37 @@ namespace Microondas.WinForms
             {
                 var currentStatus = service.ObterStatusAquecimento();
 
-                var command = new IniciarAquecimentoCommand
+                if (currentStatus.Status == StatusMicroondas.Aquecendo)
+                    return;
+
+                if (programaSelecionado != null)
                 {
-                    Tempo = string.IsNullOrWhiteSpace(txtTempo.Text)
-                        ? null
-                        : int.Parse(txtTempo.Text),
+                    iniciarProgramaSelecionado();
+                }
+                else
+                {
+                    var command = new IniciarAquecimentoCommand
+                    {
+                        Tempo = string.IsNullOrWhiteSpace(txtTempo.Text)
+                            ? null
+                            : int.Parse(txtTempo.Text),
 
-                    Potencia = string.IsNullOrWhiteSpace(txtPotencia.Text)
-                        ? null
-                        : int.Parse(txtPotencia.Text),
+                        Potencia = string.IsNullOrWhiteSpace(txtPotencia.Text)
+                            ? null
+                            : int.Parse(txtPotencia.Text),
 
-                    ProgramaPreDefinido = programaPreDefinido
-                };
+                        ProgramaPreDefinido = programaPreDefinido
+                    };
 
-                lblStatus.Text =
-                    iniciarAquecimentoHandler.Handle(command);
+                    lblStatus.Text =
+                        iniciarAquecimentoHandler.Handle(command);
+                }
 
                 var status = service.ObterStatusAquecimento();
                 txtTempo.Text = status.TempoRestante.ToString();
                 txtPotencia.Text = status.Potencia.ToString();
+                listaProgramas.Enabled = false;
+                btnLimparPrograma.Enabled = false;
 
                 timerAquecimento.Start();
             }
@@ -97,7 +109,10 @@ namespace Microondas.WinForms
             lblTempoRestante.Text = $"Tempo restante: {service.FormatarTempo(status.TempoRestante)}";
 
             if (status.Concluido)
+            {
                 timerAquecimento.Stop();
+                listaProgramas.Enabled = true;
+            }
 
         }
 
@@ -117,6 +132,8 @@ namespace Microondas.WinForms
             txtTempo.Enabled = true;
 
             txtPotencia.Enabled = true;
+
+            listaProgramas.Enabled = true;
 
             programaSelecionado = null;
 
@@ -154,10 +171,10 @@ namespace Microondas.WinForms
         {
             var currentStatus = service.ObterStatusAquecimento();
 
-            // Bloquear seleção enquanto estiver aquecendo
             if (currentStatus.Status == StatusMicroondas.Aquecendo)
             {
                 listaProgramas.SelectedItem = programaSelecionado;
+                btnLimparPrograma.Enabled = false;
                 return;
             }
 
@@ -188,11 +205,30 @@ namespace Microondas.WinForms
         private void iniciarProgramaSelecionado()
         {
 
-            var resultadoPrograma =
-                    service.IniciarProgramaAquecimento(
-                        programaSelecionado);
+            if (programaSelecionado == null)
+                return;
 
-            lblStatus.Text = resultadoPrograma;
+            var command = new IniciarAquecimentoCommand
+            {
+                Tempo = programaSelecionado.Tempo,
+                Potencia = programaSelecionado.Potencia,
+                ProgramaPreDefinido = true
+            };
+
+            var resultado = iniciarAquecimentoHandler.Handle(command);
+
+            try
+            {
+                var status = service.ObterStatusAquecimento();
+                status.CaractereAquecimento = programaSelecionado.CaractereAquecimento;
+            }
+            catch
+            {
+            }
+
+            lblStatus.Text = resultado;
+
+            listaProgramas.Enabled = false;
 
             timerAquecimento.Start();
 
@@ -201,6 +237,14 @@ namespace Microondas.WinForms
 
         private void btnLimparPrograma_Click(object sender, EventArgs e)
         {
+            var status = service.ObterStatusAquecimento();
+
+            if (status.Status == StatusMicroondas.Aquecendo)
+            {
+                MessageBox.Show("Não é possível limpar o programa enquanto houver aquecimento em andamento.", "Atenção", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
             programaSelecionado = null;
 
             programaPreDefinido = false;
@@ -222,6 +266,10 @@ namespace Microondas.WinForms
 
             txtTempo.Enabled = true;
             txtPotencia.Enabled = true;
+
+            // Permitir selecionar outro programa após limpar
+            listaProgramas.Enabled = true;
+            try { listaProgramas.Focus(); } catch { }
 
             btnLimparPrograma.Enabled = false;
         }
